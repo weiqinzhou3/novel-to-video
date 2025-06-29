@@ -432,7 +432,24 @@ async def process_generation(task_id: str, request: GenerationRequest):
         
         # 保存视频
         output_path = output_dir / f"{task_id}.mp4"
-        export_to_video(frames, str(output_path), fps=8)
+        logger.info(f"开始保存视频: {task_id}, 路径: {output_path}")
+        logger.info(f"视频帧数量: {len(frames)}, 帧类型: {type(frames[0]) if frames else 'None'}")
+        
+        try:
+            export_to_video(frames, str(output_path), fps=8)
+            logger.info(f"视频保存成功: {output_path}")
+            
+            # 验证文件是否真的被创建
+            if output_path.exists():
+                file_size = output_path.stat().st_size
+                logger.info(f"视频文件已创建，大小: {file_size} bytes")
+            else:
+                raise Exception(f"视频文件未创建: {output_path}")
+                
+        except Exception as video_error:
+            logger.error(f"视频保存失败: {video_error}")
+            logger.error(f"视频保存错误详情: {traceback.format_exc()}")
+            raise video_error
         
         # 更新任务状态
         tasks[task_id]["status"] = "completed"
