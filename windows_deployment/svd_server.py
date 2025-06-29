@@ -13,8 +13,9 @@ from diffusers import StableVideoDiffusionPipeline
 from diffusers.utils import load_image, export_to_video
 import uuid
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Dict, List, Optional, Any
 import os
+import sys
 import json
 from datetime import datetime
 import logging
@@ -25,6 +26,10 @@ from PIL import Image
 import numpy as np
 from contextlib import asynccontextmanager
 from huggingface_hub import login
+import traceback
+import gc
+import psutil
+import socket
 
 # 导入配置管理器
 from config_manager import config
@@ -55,7 +60,7 @@ output_dir.mkdir(exist_ok=True)
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时加载模型
-    await load_model()
+    load_model()
     yield
     # 关闭时清理资源
     global pipeline
@@ -113,28 +118,21 @@ class TaskResponse(BaseModel):
     created_at: Optional[str] = None
     completed_at: Optional[str] = None
 
-async def load_model():
+def load_model():
     """加载SVD模型"""
     global pipeline
+    
     try:
         # 获取模型配置
         model_config = config.get_model_config()
         model_name = model_config.get('name', 'stabilityai/stable-video-diffusion-img2vid-xt-1-1')
         
-        logger.info(f"正在加载SVD模型: {model_name}")
-        
         # 检查Hugging Face token
         hf_token = config.get_huggingface_token()
-        if hf_token:
-            try:
-                login(token=hf_token)
-                logger.info("Hugging Face认证成功")
-            except Exception as e:
-                logger.warning(f"Hugging Face认证失败: {e}")
+        if not hf_token:
+            logger.warning("未设置Hugging Face token，可能无法访问受限模型")
         else:
-            logger.warning("未找到Hugging Face token，可能无法访问受限模型")
-            logger.info("请设置环境变量: set HUGGINGFACE_TOKEN=your_token_here")
-            logger.info("或在命令行中运行: huggingface-cli login")
+            logger.info("已检测到Hugging Face token")
         
         # 设备配置
         device_config = model_config.get('device', 'auto')
@@ -143,42 +141,43 @@ async def load_model():
         else:
             device = device_config
         
-        if device == "cuda" and not torch.cuda.is_available():
-            logger.warning("CUDA不可用，将使用CPU运行（速度较慢）")
-            device = "cpu"
+        logger.info(f"使用设备: {device}")
+        
+        if device == "cuda":
+            logger.info(f"GPU信息: {torch.cuda.get_device_name(0)}")
+            logger.info(f"GPU内存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+        
+        # 加载模型
+        logger.info(f"开始加载SVD模型: {model_name}")
+        
+        # 构建模型参数
+        model_kwargs = {}
         
         # 数据类型配置
         torch_dtype_config = model_config.get('torch_dtype', 'auto')
         if torch_dtype_config == 'auto':
-            torch_dtype = torch.float16 if device == "cuda" else torch.float32
+            model_kwargs["torch_dtype"] = torch.float16 if device == "cuda" else torch.float32
         elif torch_dtype_config == 'float16':
-            torch_dtype = torch.float16
+            model_kwargs["torch_dtype"] = torch.float16
         elif torch_dtype_config == 'float32':
-            torch_dtype = torch.float32
-        else:
-            torch_dtype = torch.float32
-        
-        logger.info(f"使用设备: {device}, 数据类型: {torch_dtype}")
-        
-        if device == "cuda":
-            logger.info(f"使用GPU: {torch.cuda.get_device_name(0)}")
-        
-        # 构建模型参数
-        model_kwargs = {
-            "torch_dtype": torch_dtype,
-            "token": hf_token if hf_token else True
-        }
+            model_kwargs["torch_dtype"] = torch.float32
         
         # 变体配置
         variant = model_config.get('variant')
         if variant and device == "cuda":
             model_kwargs["variant"] = variant
         
-        # 加载模型
+        # 添加token参数
+        if hf_token:
+            model_kwargs["token"] = hf_token
+        else:
+            model_kwargs["token"] = True
+        
         pipeline = StableVideoDiffusionPipeline.from_pretrained(
             model_name,
             **model_kwargs
         )
+        
         pipeline = pipeline.to(device)
         
         # 内存优化配置
@@ -191,33 +190,31 @@ async def load_model():
             try:
                 if hasattr(pipeline, 'enable_vae_slicing'):
                     pipeline.enable_vae_slicing()
-                    logger.info("VAE内存优化已启用")
+                    logger.info("已启用VAE切片优化")
                 elif hasattr(pipeline, 'enable_vae_tiling'):
                     pipeline.enable_vae_tiling()
-                    logger.info("VAE平铺优化已启用")
+                    logger.info("已启用VAE平铺优化")
+                else:
+                    logger.warning("当前diffusers版本不支持VAE内存优化")
             except Exception as e:
-                logger.warning(f"VAE优化启用失败，但不影响正常使用: {e}")
+                logger.warning(f"启用VAE优化失败: {e}")
         
         # 注意力切片优化
         if model_config.get('enable_attention_slicing', True):
             try:
                 if hasattr(pipeline, 'enable_attention_slicing'):
                     pipeline.enable_attention_slicing()
-                    logger.info("注意力切片优化已启用")
+                    logger.info("已启用注意力切片优化")
             except Exception as e:
-                logger.warning(f"注意力切片优化启用失败: {e}")
+                logger.warning(f"启用注意力切片优化失败: {e}")
         
-        logger.info("SVD模型加载完成")
+        logger.info("SVD模型加载成功！")
+        return True
+        
     except Exception as e:
         logger.error(f"模型加载失败: {e}")
-        if "401" in str(e) or "access" in str(e).lower():
-            logger.error("认证错误：请确保已正确设置Hugging Face访问令牌")
-            logger.error("解决方案：")
-            logger.error("1. 访问 https://huggingface.co/settings/tokens 创建访问令牌")
-            logger.error("2. 设置环境变量: set HUGGINGFACE_TOKEN=your_token_here")
-            logger.error("3. 或运行: huggingface-cli login")
-            logger.error("4. 确保您的账户有权访问模型")
-        pipeline = None
+        logger.error(traceback.format_exc())
+        return False
 
 @app.get("/health")
 async def health_check():
@@ -482,17 +479,19 @@ def find_available_port(start_port: int, fallback_ports: List[int]) -> int:
         raise RuntimeError("无法找到可用端口")
 
 if __name__ == "__main__":
-    # 验证配置
-    config_errors = config.validate_config()
-    if config_errors:
-        logger.error("配置验证失败:")
-        for error in config_errors:
-            logger.error(f"  - {error}")
-        sys.exit(1)
-    
-    # 启动时加载模型
+    # 启动服务
     logger.info("正在启动SVD视频生成服务...")
     
+    # 验证配置
+    try:
+        config.validate_config()
+        logger.info("配置验证通过")
+    except Exception as e:
+        logger.error(f"配置验证失败: {e}")
+        sys.exit(1)
+    
+    # 加载模型
+    logger.info("正在加载模型...")
     if not load_model():
         logger.error("模型加载失败，服务无法启动")
         sys.exit(1)
