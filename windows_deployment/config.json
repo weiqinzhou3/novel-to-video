@@ -2,6 +2,7 @@
   "server": {
     "host": "0.0.0.0",
     "port": 8000,
+    "fallback_ports": [8001, 8002, 8003, 8004, 8005],
     "log_level": "info",
     "access_log": true,
     "workers": 1
@@ -49,5 +50,17 @@
     "max_log_size_mb": 100,
     "backup_count": 5,
     "log_format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  },
+  "huggingface": {
+    "token_env_var": "HUGGINGFACE_TOKEN",
+    "auto_login": true,
+    "cache_dir_env_var": "HF_HOME",
+    "disable_symlinks_warning": true
+  },
+  "monitoring": {
+    "enable_health_check": true,
+    "health_check_interval_seconds": 30,
+    "log_performance_metrics": true,
+    "enable_gpu_monitoring": true
   }
 }

@@ -23,29 +23,66 @@ import aiofiles
 import uvicorn
 from PIL import Image
 import numpy as np
+from contextlib import asynccontextmanager
+from huggingface_hub import login
+
+# 导入配置管理器
+from config_manager import config
+
+# 设置环境变量
+config.setup_environment()
 
 # 配置日志
+log_config = config.get_logging_config()
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=getattr(logging, log_config.get('log_level', 'INFO').upper()),
+    format=log_config.get('log_format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
     handlers=[
-        logging.FileHandler('svd_server.log', encoding='utf-8'),
+        logging.FileHandler(log_config.get('log_file', 'svd_server.log'), encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(
-    title="SVD Video Generation API",
-    description="Stable Video Diffusion 视频生成服务",
-    version="1.0.0"
-)
-
 # 全局变量
 pipeline = None
 tasks = {}
-output_dir = Path("outputs")
+storage_config = config.get_storage_config()
+output_dir = Path(storage_config.get('output_dir', 'outputs'))
 output_dir.mkdir(exist_ok=True)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动时加载模型
+    await load_model()
+    yield
+    # 关闭时清理资源
+    global pipeline
+    if pipeline is not None:
+        del pipeline
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        logger.info("模型资源已清理")
+
+app = FastAPI(
+    title="SVD Video Generation API",
+    description="Stable Video Diffusion 视频生成服务",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# 添加CORS中间件
+from fastapi.middleware.cors import CORSMiddleware
+security_config = config.get_security_config()
+if security_config.get('enable_cors', True):
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=security_config.get('allowed_origins', ["*"]),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 class GenerationRequest(BaseModel):
     prompt: str
@@ -58,6 +95,15 @@ class GenerationRequest(BaseModel):
     seed: int = -1
     input_image: Optional[str] = None  # base64编码的图像或图像URL
 
+class VideoGenerationRequest(BaseModel):
+    image_url: Optional[str] = None
+    image_base64: Optional[str] = None
+    num_frames: int = 25
+    num_inference_steps: int = 25
+    guidance_scale: float = 7.5
+    seed: Optional[int] = None
+    fps: int = 8
+
 class TaskResponse(BaseModel):
     task_id: str
     status: str
@@ -67,40 +113,110 @@ class TaskResponse(BaseModel):
     created_at: Optional[str] = None
     completed_at: Optional[str] = None
 
-@app.on_event("startup")
 async def load_model():
-    """启动时加载SVD模型"""
+    """加载SVD模型"""
     global pipeline
     try:
-        logger.info("正在加载SVD模型...")
+        # 获取模型配置
+        model_config = config.get_model_config()
+        model_name = model_config.get('name', 'stabilityai/stable-video-diffusion-img2vid-xt-1-1')
         
-        # 检查GPU可用性
-        if not torch.cuda.is_available():
+        logger.info(f"正在加载SVD模型: {model_name}")
+        
+        # 检查Hugging Face token
+        hf_token = config.get_huggingface_token()
+        if hf_token:
+            try:
+                login(token=hf_token)
+                logger.info("Hugging Face认证成功")
+            except Exception as e:
+                logger.warning(f"Hugging Face认证失败: {e}")
+        else:
+            logger.warning("未找到Hugging Face token，可能无法访问受限模型")
+            logger.info("请设置环境变量: set HUGGINGFACE_TOKEN=your_token_here")
+            logger.info("或在命令行中运行: huggingface-cli login")
+        
+        # 设备配置
+        device_config = model_config.get('device', 'auto')
+        if device_config == 'auto':
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            device = device_config
+        
+        if device == "cuda" and not torch.cuda.is_available():
             logger.warning("CUDA不可用，将使用CPU运行（速度较慢）")
             device = "cpu"
+        
+        # 数据类型配置
+        torch_dtype_config = model_config.get('torch_dtype', 'auto')
+        if torch_dtype_config == 'auto':
+            torch_dtype = torch.float16 if device == "cuda" else torch.float32
+        elif torch_dtype_config == 'float16':
+            torch_dtype = torch.float16
+        elif torch_dtype_config == 'float32':
             torch_dtype = torch.float32
         else:
-            device = "cuda"
-            torch_dtype = torch.float16
+            torch_dtype = torch.float32
+        
+        logger.info(f"使用设备: {device}, 数据类型: {torch_dtype}")
+        
+        if device == "cuda":
             logger.info(f"使用GPU: {torch.cuda.get_device_name(0)}")
+        
+        # 构建模型参数
+        model_kwargs = {
+            "torch_dtype": torch_dtype,
+            "token": hf_token if hf_token else True
+        }
+        
+        # 变体配置
+        variant = model_config.get('variant')
+        if variant and device == "cuda":
+            model_kwargs["variant"] = variant
         
         # 加载模型
         pipeline = StableVideoDiffusionPipeline.from_pretrained(
-            "stabilityai/stable-video-diffusion-img2vid-xt-1-1",
-            torch_dtype=torch_dtype,
-            variant="fp16" if device == "cuda" else None
+            model_name,
+            **model_kwargs
         )
         pipeline = pipeline.to(device)
         
-        # 启用内存优化
-        if device == "cuda":
+        # 内存优化配置
+        if model_config.get('enable_cpu_offload', True) and device == "cuda":
             pipeline.enable_model_cpu_offload()
-            pipeline.enable_vae_slicing()
+            logger.info("已启用模型CPU卸载")
+        
+        # VAE优化
+        if model_config.get('enable_vae_slicing', True):
+            try:
+                if hasattr(pipeline, 'enable_vae_slicing'):
+                    pipeline.enable_vae_slicing()
+                    logger.info("VAE内存优化已启用")
+                elif hasattr(pipeline, 'enable_vae_tiling'):
+                    pipeline.enable_vae_tiling()
+                    logger.info("VAE平铺优化已启用")
+            except Exception as e:
+                logger.warning(f"VAE优化启用失败，但不影响正常使用: {e}")
+        
+        # 注意力切片优化
+        if model_config.get('enable_attention_slicing', True):
+            try:
+                if hasattr(pipeline, 'enable_attention_slicing'):
+                    pipeline.enable_attention_slicing()
+                    logger.info("注意力切片优化已启用")
+            except Exception as e:
+                logger.warning(f"注意力切片优化启用失败: {e}")
         
         logger.info("SVD模型加载完成")
-        
     except Exception as e:
         logger.error(f"模型加载失败: {e}")
+        if "401" in str(e) or "access" in str(e).lower():
+            logger.error("认证错误：请确保已正确设置Hugging Face访问令牌")
+            logger.error("解决方案：")
+            logger.error("1. 访问 https://huggingface.co/settings/tokens 创建访问令牌")
+            logger.error("2. 设置环境变量: set HUGGINGFACE_TOKEN=your_token_here")
+            logger.error("3. 或运行: huggingface-cli login")
+            logger.error("4. 确保您的账户有权访问模型")
         pipeline = None
 
 @app.get("/health")
@@ -237,6 +353,38 @@ async def list_tasks(limit: int = 50, status: Optional[str] = None):
         "total": len(filtered_tasks)
     }
 
+def resize_image(image: Image.Image, target_width: int = None, target_height: int = None) -> Image.Image:
+    """调整图片尺寸"""
+    gen_config = config.get_generation_config()
+    if target_width is None:
+        target_width = gen_config.get('default_width', 1024)
+    if target_height is None:
+        target_height = gen_config.get('default_height', 576)
+    
+    # 计算缩放比例
+    width_ratio = target_width / image.width
+    height_ratio = target_height / image.height
+    scale_ratio = min(width_ratio, height_ratio)
+    
+    # 计算新尺寸
+    new_width = int(image.width * scale_ratio)
+    new_height = int(image.height * scale_ratio)
+    
+    # 调整图片大小
+    image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    
+    # 创建目标尺寸的画布
+    canvas = Image.new('RGB', (target_width, target_height), (0, 0, 0))
+    
+    # 计算居中位置
+    x_offset = (target_width - new_width) // 2
+    y_offset = (target_height - new_height) // 2
+    
+    # 将调整后的图片粘贴到画布中心
+    canvas.paste(image, (x_offset, y_offset))
+    
+    return canvas
+
 async def process_generation(task_id: str, request: GenerationRequest):
     """处理视频生成任务"""
     try:
@@ -304,12 +452,73 @@ async def process_generation(task_id: str, request: GenerationRequest):
         tasks[task_id]["error_message"] = str(e)
         tasks[task_id]["completed_at"] = datetime.now().isoformat()
 
+def find_available_port(start_port: int, fallback_ports: List[int]) -> int:
+    """查找可用端口"""
+    def is_port_available(port: int) -> bool:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('0.0.0.0', port))
+                return True
+        except OSError:
+            return False
+    
+    # 首先尝试默认端口
+    if is_port_available(start_port):
+        return start_port
+    
+    # 尝试备用端口
+    for port in fallback_ports:
+        if is_port_available(port):
+            logger.info(f"端口 {start_port} 被占用，切换到端口 {port}")
+            return port
+    
+    # 如果所有配置的端口都被占用，尝试系统分配
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('0.0.0.0', 0))
+            port = s.getsockname()[1]
+            logger.info(f"所有配置端口被占用，使用系统分配端口 {port}")
+            return port
+    except OSError:
+        raise RuntimeError("无法找到可用端口")
+
 if __name__ == "__main__":
-    # 启动服务器
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        log_level="info",
-        access_log=True
-    )
+    # 验证配置
+    config_errors = config.validate_config()
+    if config_errors:
+        logger.error("配置验证失败:")
+        for error in config_errors:
+            logger.error(f"  - {error}")
+        sys.exit(1)
+    
+    # 启动时加载模型
+    logger.info("正在启动SVD视频生成服务...")
+    
+    if not load_model():
+        logger.error("模型加载失败，服务无法启动")
+        sys.exit(1)
+    
+    # 获取服务器配置
+    server_config = config.get_server_config()
+    host = server_config.get('host', '0.0.0.0')
+    default_port = server_config.get('port', 8000)
+    fallback_ports = config.get_fallback_ports()
+    log_level = server_config.get('log_level', 'info')
+    access_log = server_config.get('access_log', True)
+    
+    # 查找可用端口
+    try:
+        port = find_available_port(default_port, fallback_ports)
+        logger.info(f"服务将在 {host}:{port} 启动")
+        
+        # 启动服务器
+        uvicorn.run(
+            app,
+            host=host,
+            port=port,
+            log_level=log_level,
+            access_log=access_log
+        )
+    except Exception as e:
+        logger.error(f"服务启动失败: {e}")
+        sys.exit(1)
