@@ -1,0 +1,139 @@
+{
+  "_comment": "小说转视频工具配置文件模板",
+  "_instructions": "请复制此文件为 config.json 并填入你的API密钥",
+  
+  "api_keys": {
+    "openai": {
+      "api_key": "sk-your-openai-api-key-here",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4",
+      "tts_model": "tts-1-hd",
+      "tts_voice": "alloy"
+    },
+    "runway": {
+      "api_key": "your-runway-api-key-here",
+      "base_url": "https://api.runwayml.com/v1",
+      "model": "gen4-turbo"
+    },
+    "elevenlabs": {
+      "api_key": "your-elevenlabs-api-key-here",
+      "voice_id": "21m00Tcm4TlvDq8ikWAM",
+      "model": "eleven_multilingual_v2"
+    },
+    "youtube": {
+      "api_key": "your-youtube-data-api-key-here",
+      "client_secrets_file": "config/youtube_client_secrets.json"
+    }
+  },
+  
+  "text_processing": {
+    "max_script_length": 2000,
+    "target_duration_seconds": 180,
+    "scene_count": 5,
+    "language": "zh-CN",
+    "summary_prompt": "请将这部小说提炼成{scene_count}个关键场景，每个场景包含简洁的叙述文本和视觉描述。总时长控制在{target_duration}秒内。"
+  },
+  
+  "audio_generation": {
+    "provider": "openai",
+    "sample_rate": 24000,
+    "format": "wav",
+    "speed": 1.0,
+    "pitch": 0,
+    "volume": 1.0
+  },
+  
+  "video_generation": {
+    "provider": "runway",
+    "resolution": "1280x720",
+    "fps": 24,
+    "duration_per_scene": 4,
+    "style_prompt": "cinematic, high quality, detailed, atmospheric",
+    "negative_prompt": "blurry, low quality, distorted, text, watermark",
+    "guidance_scale": 7.5,
+    "num_inference_steps": 50
+  },
+  
+  "video_editing": {
+    "output_resolution": "1920x1080",
+    "output_fps": 30,
+    "output_format": "mp4",
+    "video_codec": "libx264",
+    "audio_codec": "aac",
+    "bitrate": "5000k",
+    "audio_bitrate": "192k",
+    
+    "subtitle_settings": {
+      "enabled": true,
+      "font": "Arial",
+      "font_size": 24,
+      "font_color": "white",
+      "outline_color": "black",
+      "outline_width": 2,
+      "position": "bottom",
+      "margin": 50
+    },
+    
+    "transition_effects": {
+      "enabled": true,
+      "type": "fade",
+      "duration": 0.5
+    },
+    
+    "background_music": {
+      "enabled": false,
+      "file": "templates/audio/background.mp3",
+      "volume": 0.3
+    }
+  },
+  
+  "shorts_generation": {
+    "enabled": true,
+    "resolution": "1080x1920",
+    "duration": 60,
+    "segments": 3,
+    "overlap_seconds": 5
+  },
+  
+  "upload_settings": {
+    "platforms": {
+      "youtube": {
+        "enabled": false,
+        "privacy": "private",
+        "category": "22",
+        "tags": ["AI生成", "小说解说", "自动化视频"]
+      },
+      "bilibili": {
+        "enabled": false,
+        "tid": 138,
+        "tags": "AI,小说,解说视频"
+      }
+    },
+    
+    "auto_generate_metadata": {
+      "enabled": true,
+      "title_template": "【AI解说】{novel_title} - 一口气看完",
+      "description_template": "本视频由AI自动生成，内容来源于小说《{novel_title}》。\n\n⚠️ 本视频仅供娱乐，如有版权问题请联系删除。"
+    }
+  },
+  
+  "performance": {
+    "max_concurrent_requests": 3,
+    "request_timeout": 300,
+    "retry_attempts": 3,
+    "retry_delay": 5
+  },
+  
+  "logging": {
+    "log_level": "INFO",
+    "log_file": "logs/video_generation.log",
+    "max_log_size": "10MB",
+    "backup_count": 5
+  },
+  
+  "temp_settings": {
+    "temp_dir": "temp",
+    "cleanup_temp_files": true,
+    "keep_intermediate_files": false
+  }
+}

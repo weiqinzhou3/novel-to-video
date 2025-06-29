@@ -1,0 +1,36 @@
+# SVD视频生成服务依赖包
+# 安装命令: pip install -r requirements.txt
+
+# 核心框架
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# AI/ML 核心库
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.35.0
+diffusers>=0.24.0
+accelerate>=0.24.0
+
+# 图像处理
+Pillow>=10.0.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# 异步文件操作
+aiofiles>=23.2.0
+
+# 其他工具
+requests>=2.31.0
+httpx>=0.25.0
+python-multipart>=0.0.6
+
+# 可选：CUDA支持（如果有NVIDIA GPU）
+# torch-audio>=2.0.0
+# xformers>=0.0.22  # 用于内存优化
+
+# 开发和调试工具（可选）
+# jupyter>=1.0.0
+# matplotlib>=3.7.0
+# tqdm>=4.66.0

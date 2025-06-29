@@ -1,0 +1,53 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "log_level": "info",
+    "access_log": true,
+    "workers": 1
+  },
+  "model": {
+    "name": "stabilityai/stable-video-diffusion-img2vid-xt-1-1",
+    "device": "auto",
+    "torch_dtype": "auto",
+    "variant": "fp16",
+    "enable_cpu_offload": true,
+    "enable_vae_slicing": true,
+    "enable_attention_slicing": true
+  },
+  "generation": {
+    "default_num_frames": 25,
+    "max_num_frames": 25,
+    "default_width": 1024,
+    "default_height": 576,
+    "max_width": 1024,
+    "max_height": 576,
+    "default_num_inference_steps": 25,
+    "max_num_inference_steps": 50,
+    "default_guidance_scale": 7.5,
+    "fps": 8
+  },
+  "storage": {
+    "output_dir": "outputs",
+    "max_storage_gb": 10,
+    "cleanup_after_days": 7,
+    "auto_cleanup": true
+  },
+  "performance": {
+    "max_concurrent_tasks": 2,
+    "task_timeout_minutes": 30,
+    "memory_cleanup_interval": 300
+  },
+  "security": {
+    "enable_cors": true,
+    "allowed_origins": ["*"],
+    "max_file_size_mb": 50,
+    "rate_limit_per_minute": 10
+  },
+  "logging": {
+    "log_file": "svd_server.log",
+    "max_log_size_mb": 100,
+    "backup_count": 5,
+    "log_format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}

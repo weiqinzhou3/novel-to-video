@@ -1,0 +1,379 @@
+# 小说自动视频制作工具 - Git忽略文件
+
+# Python相关
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PYMANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# 项目特定文件
+# 配置文件（包含API密钥）
+config/config.json
+config/credentials.json
+config/client_secret.json
+config/*.key
+config/*.pem
+
+# 输出文件
+output/
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.mp3
+*.wav
+*.aac
+*.flac
+
+# 临时文件
+data/temp/
+temp/
+tmp/
+*.tmp
+*.temp
+
+# 缓存文件
+cache/
+.cache/
+*.cache
+
+# 日志文件
+logs/
+*.log
+*.log.*
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 备份文件
+*.bak
+*.backup
+*.old
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.tar.bz2
+*.7z
+*.rar
+
+# 大文件（小说原文可能很大）
+# 如果小说文件很大，可以考虑使用Git LFS
+# data/novels/*.txt
+
+# 系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# 网络文件
+.nfs*
+
+# 临时下载文件
+*.part
+*.crdownload
+
+# 编辑器临时文件
+.#*
+*#
+*~
+
+# 测试文件
+test_output/
+test_data/
+*.test
+
+# 文档生成
+docs/build/
+docs/_build/
+
+# 依赖锁定文件（可选）
+# requirements-freeze.txt
+
+# Docker相关
+.dockerignore
+
+# 云服务相关
+.aws/
+.gcp/
+.azure/
+
+# 机器学习模型文件
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.pb
+
+# 字体文件（如果很大）
+# fonts/*.ttf
+# fonts/*.otf
+
+# 音频样本
+# samples/
+
+# 视频模板
+# templates/*.mp4
+
+# API响应缓存
+api_cache/
+
+# 性能分析文件
+*.prof
+*.profile
+
+# 内存转储
+*.dump
+*.dmp
+
+# 核心转储
+core
+core.*
+
+# 错误报告
+error_reports/
+crash_logs/
+
+# 用户上传的内容
+uploads/
+user_data/
+
+# 第三方工具
+.tool-versions
+.nvmrc
+
+# 本地配置覆盖
+local_config.json
+dev_config.json
+
+# 实验性功能
+experiments/
+prototypes/
+
+# 性能测试结果
+benchmarks/
+performance/
+
+# 安全扫描结果
+security_reports/
+
+# 许可证检查
+license_check/
+
+# 代码质量报告
+quality_reports/
+
+# 依赖漏洞扫描
+vulnerability_reports/
+
+# 本地开发脚本
+dev_scripts/
+local_scripts/
+
+# 个人笔记
+NOTES.md
+TODO.md
+IDEAS.md
+
+# 临时补丁
+*.patch
+*.diff
+
+# 调试输出
+debug_output/
+trace_logs/
+
+# 监控数据
+metrics/
+monitoring/
+
+# 部署相关
+deploy/
+k8s/
+helm/
+
+# CI/CD相关
+.github/workflows/local_*
+.gitlab-ci.local.yml
+
+# 本地环境变量
+.env.local
+.env.development
+.env.production
+
+# 密钥和证书
+*.key
+*.pem
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# 数据文件（如果包含敏感信息）
+# data/private/
+# data/sensitive/
+
+# 用户自定义忽略
+# 在这里添加项目特定的忽略规则

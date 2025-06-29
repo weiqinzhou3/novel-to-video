@@ -1,0 +1,125 @@
+{
+  "_comment": "这是Mac端config.json的配置示例，用于连接Windows上的SVD服务",
+  "_instructions": [
+    "1. 将Windows机器的IP地址替换下面的192.168.1.100",
+    "2. 确保Windows防火墙已配置允许端口8000",
+    "3. 将此配置合并到Mac项目的config/config.json中"
+  ],
+  
+  "api_keys": {
+    "openai_api_key": "your-openai-key",
+    "runway_api_key": "your-runway-key",
+    "pika_api_key": "your-pika-key",
+    "luma_api_key": "your-luma-key"
+  },
+  
+  "video_generation": {
+    "default_backend": "svd",
+    "fallback_enabled": true,
+    "health_check_interval": 60,
+    "load_balancing": "priority",
+    
+    "multi_backend": {
+      "svd": {
+        "endpoint": "http://192.168.1.100:8000",
+        "enabled": true,
+        "priority": 1,
+        "max_concurrent": 2,
+        "timeout": 300,
+        "retry_attempts": 3,
+        "model": "stabilityai/stable-video-diffusion-img2vid-xt-1-1",
+        "_comment": "Windows上的SVD服务"
+      },
+      
+      "runway": {
+        "endpoint": "https://api.runwayml.com/v1",
+        "enabled": true,
+        "priority": 2,
+        "max_concurrent": 1,
+        "timeout": 300,
+        "retry_attempts": 2,
+        "model": "gen3a_turbo",
+        "_comment": "Runway ML云服务（备用）"
+      },
+      
+      "pika": {
+        "endpoint": "https://api.pika.art/v1",
+        "enabled": true,
+        "priority": 3,
+        "max_concurrent": 1,
+        "timeout": 300,
+        "retry_attempts": 2,
+        "model": "pika-1.5",
+        "_comment": "Pika Labs云服务（备用）"
+      },
+      
+      "luma": {
+        "endpoint": "https://api.lumalabs.ai/v1",
+        "enabled": true,
+        "priority": 4,
+        "max_concurrent": 1,
+        "timeout": 300,
+        "retry_attempts": 2,
+        "model": "dream-machine-v1",
+        "_comment": "Luma Dream Machine云服务（备用）"
+      }
+    },
+    
+    "generation_params": {
+      "default_width": 1024,
+      "default_height": 576,
+      "default_num_frames": 25,
+      "default_fps": 8,
+      "default_duration": 3.0,
+      "max_width": 1024,
+      "max_height": 576,
+      "max_num_frames": 25,
+      "max_duration": 10.0
+    }
+  },
+  
+  "_usage_examples": {
+    "test_connection": {
+      "description": "测试Windows SVD服务连接",
+      "curl_command": "curl http://192.168.1.100:8000/health"
+    },
+    
+    "generate_video": {
+      "description": "通过API生成视频",
+      "curl_command": "curl -X POST http://192.168.1.100:8000/generate -H 'Content-Type: application/json' -d '{\"prompt\": \"A beautiful sunset\", \"num_frames\": 14}'"
+    },
+    
+    "check_status": {
+      "description": "检查任务状态",
+      "curl_command": "curl http://192.168.1.100:8000/status/{task_id}"
+    },
+    
+    "download_video": {
+      "description": "下载生成的视频",
+      "curl_command": "curl -O http://192.168.1.100:8000/download/{task_id}"
+    }
+  },
+  
+  "_troubleshooting": {
+    "connection_failed": [
+      "检查Windows机器IP地址是否正确",
+      "确认Windows防火墙已配置（运行setup_firewall.bat）",
+      "测试网络连通性：ping 192.168.1.100",
+      "测试端口连通性：telnet 192.168.1.100 8000"
+    ],
+    
+    "service_unhealthy": [
+      "检查Windows上的SVD服务是否正在运行",
+      "查看Windows上的svd_server.log日志文件",
+      "确认模型已成功下载和加载",
+      "检查GPU内存是否足够"
+    ],
+    
+    "slow_generation": [
+      "首次使用需要下载大型模型文件（约7GB）",
+      "GPU版本比CPU版本快很多",
+      "减少帧数和分辨率可以加快生成速度",
+      "确保Windows机器有足够的内存和存储空间"
+    ]
+  }
+}
