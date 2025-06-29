@@ -429,7 +429,6 @@ async def process_generation(task_id: str, request: GenerationRequest):
             width=request.width,
             num_frames=request.num_frames,
             num_inference_steps=request.num_inference_steps,
-            guidance_scale=request.guidance_scale,
         ).frames[0]
         
         tasks[task_id]["progress"] = 0.8

@@ -18,7 +18,8 @@ class PikaBackend(BaseVideoBackend):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         
-        pika_config = config.get('api_keys', {}).get('pika', {})
+        # 从video_generation.backends.pika获取配置
+        pika_config = config.get('video_generation', {}).get('backends', {}).get('pika', {})
         self.api_key = pika_config.get('api_key')
         self.base_url = pika_config.get('base_url', 'https://api.pika.art/v1')
         self.model = pika_config.get('model', 'pika-1.0')

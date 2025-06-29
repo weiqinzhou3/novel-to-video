@@ -18,7 +18,8 @@ class SVDBackend(BaseVideoBackend):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         
-        self.svd_config = config.get('svd', {})
+        # 从video_generation.backends.svd获取配置
+        self.svd_config = config.get('video_generation', {}).get('backends', {}).get('svd', {})
         self.api_url = self.svd_config.get('api_url', 'http://localhost:8000')
         self.timeout = self.svd_config.get('timeout', 300)
         self.max_retries = self.svd_config.get('max_retries', 3)
@@ -69,7 +70,6 @@ class SVDBackend(BaseVideoBackend):
                 "width": int(task.resolution.split('x')[0]),
                 "height": int(task.resolution.split('x')[1]),
                 "num_inference_steps": task.num_inference_steps,
-                "guidance_scale": task.guidance_scale,
                 "seed": task.seed or -1
             }
             

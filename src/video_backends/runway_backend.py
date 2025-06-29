@@ -18,7 +18,8 @@ class RunwayBackend(BaseVideoBackend):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         
-        runway_config = config.get('api_keys', {}).get('runway', {})
+        # 从video_generation.backends.runway获取配置
+        runway_config = config.get('video_generation', {}).get('backends', {}).get('runway', {})
         self.api_key = runway_config.get('api_key')
         self.base_url = runway_config.get('base_url', 'https://api.runwayml.com/v1')
         self.model = runway_config.get('model', 'gen3a_turbo')

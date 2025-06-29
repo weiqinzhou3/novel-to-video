@@ -18,7 +18,8 @@ class LumaBackend(BaseVideoBackend):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         
-        luma_config = config.get('api_keys', {}).get('luma', {})
+        # 从video_generation.backends.luma获取配置
+        luma_config = config.get('video_generation', {}).get('backends', {}).get('luma', {})
         self.api_key = luma_config.get('api_key')
         self.base_url = luma_config.get('base_url', 'https://api.lumalabs.ai/dream-machine/v1')
         self.model = luma_config.get('model', 'dream-machine-v1')
