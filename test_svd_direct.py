@@ -13,7 +13,7 @@ from io import BytesIO
 
 async def test_svd_generation():
     """测试SVD视频生成"""
-    api_url = "http://192.168.50.112:8001"
+    api_url = "http://192.168.50.112:8000"
     
     # 创建一个简单的测试图像
     image = Image.new('RGB', (1024, 576), color='blue')
@@ -29,7 +29,6 @@ async def test_svd_generation():
         "width": 1024,
         "height": 576,
         "num_inference_steps": 25,
-        "guidance_scale": 7.5,
         "seed": 42,
         "input_image": image_base64
     }

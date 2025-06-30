@@ -10,7 +10,7 @@ import json
 
 async def test_svd_health():
     """测试SVD健康检查"""
-    api_url = "http://192.168.50.112:8001"
+    api_url = "http://192.168.50.112:8000"
     
     try:
         print(f"正在连接到: {api_url}/health")
